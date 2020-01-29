@@ -12,7 +12,8 @@ MainWindow::MainWindow(int index, QWidget *parent) :
     destinationAddress(0),
     earlyTokenRelease(false),
     currentPosition(0),
-    hasToken(false)
+    hasToken(false),
+    receivedFrame(false)
 {
     ui->setupUi(this);
     QString title = "Station ";
@@ -39,12 +40,13 @@ void MainWindow::disableAddTokenButton()
 
 void MainWindow::receive(Packet p)
 {
+    receivedFrame = true;
     QString content;
     content += p.getType();
     content += " ";
     if(p.getType() == 'T')
     {
-        setWindowTitle(BaseTitle + " Token here");
+        //setWindowTitle(BaseTitle + " Token here");
         hasToken = true;
         timer.start(1000);
         ui->frameLabel->setText(content);
@@ -99,9 +101,10 @@ void MainWindow::on_destinationSpinBox_valueChanged(int arg1)
 void MainWindow::on_pushButton_clicked()
 {
     emit addTokenButtonClicked(id);
-    setWindowTitle(BaseTitle + " Token here");
+    //setWindowTitle(BaseTitle + " Token here");
     hasToken = true;
     timer.start(1000);
+    receivedFrame = true;
 }
 
 void MainWindow::on_earlyTokenReleaseCheckBox_stateChanged(int arg1)
@@ -136,6 +139,7 @@ void MainWindow::transmitPacket()
         if(!buffer.empty())
         {
             emit transmit(buffer.front());
+            ui->frameLabel->setText("");
             buffer.pop_front();
         }
     }
@@ -143,25 +147,34 @@ void MainWindow::transmitPacket()
 
 void MainWindow::transmitToken()
 {
-    //timer.stop();
-    Packet token;
-    setWindowTitle(BaseTitle);
-    token.setType('T');
-    token.setSourceAddress(sourceAddress);
-    token.setDestinationaddress(destinationAddress);
-    emit transmit(token);
-    hasToken = false;
+    if(receivedFrame)
+    {
+        //timer.stop();
+        Packet token;
+        setWindowTitle(BaseTitle);
+        token.setType('T');
+        token.setSourceAddress(sourceAddress);
+        token.setDestinationaddress(destinationAddress);
+        emit transmit(token);
+        hasToken = false;
+        ui->frameLabel->setText("");
+    }
 }
 
 void MainWindow::transmitFrame()
 {
-    Packet frame;
-    frame.setType('F');
-    frame.setSourceAddress(sourceAddress);
-    frame.setDestinationaddress(destinationAddress);
-    frame.setData(ui->inputTextEdit->toPlainText().at(currentPosition++));
-    frame.setAccessControl(' ');
-    emit transmit(frame);
-    if(earlyTokenRelease)
-        transmitToken();
+    if(receivedFrame)
+    {
+        receivedFrame = false;
+        Packet frame;
+        frame.setType('F');
+        frame.setSourceAddress(sourceAddress);
+        frame.setDestinationaddress(destinationAddress);
+        frame.setData(ui->inputTextEdit->toPlainText().at(currentPosition++));
+        frame.setAccessControl(' ');
+        emit transmit(frame);
+        if(earlyTokenRelease)
+            transmitToken();
+        ui->frameLabel->setText("");
+    }
 }

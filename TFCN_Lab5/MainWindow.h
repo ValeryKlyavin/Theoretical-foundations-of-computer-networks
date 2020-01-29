@@ -23,6 +23,7 @@ class MainWindow : public QMainWindow
     bool hasToken;
     QTimer timer;
     QString BaseTitle;
+    bool receivedFrame;
 public:
 
     inline int getId() { return  id; }
